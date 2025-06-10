@@ -1,0 +1,74 @@
+# Sentris RAG Configuration Template
+# Copy this file to config.toml and update with your settings
+
+[llm]
+provider = "deepseek"                    # or "openai"
+api_key = "your-deepseek-api-key"
+api_base = "https://api.deepseek.com/v1" # DeepSeek API base URL
+model = "deepseek-chat"                  # or specific model version
+temperature = 0.7
+max_tokens = 2000
+
+# If using OpenAI instead:
+# provider = "openai"
+# api_key = "your-openai-api-key"
+# model = "gpt-4"
+
+[embeddings]
+model = "sentence-transformers/all-mpnet-base-v2"
+device = "cuda"                                   # or "cpu" if no GPU available
+batch_size = 32
+
+[vector_store]
+engine = "chromadb"
+persist_directory = "./data/vectors"
+collection_name = "sentris_knowledge"
+distance_metric = "cosine"
+
+[document_processor]
+chunk_size = 512
+chunk_overlap = 50
+max_chunks_per_doc = 1000
+supported_formats = ["pdf", "txt", "docx", "html"]
+
+[web_search]
+default_engine = "duckduckgo" # or "google"
+google_api_key = ""           # Required only if using Google
+google_cx = ""                # Required only if using Google
+max_results = 10
+cache_duration = 3600         # Cache results for 1 hour
+
+[educational]
+default_difficulty_levels = ["beginner", "intermediate", "advanced", "expert"]
+quiz_types = ["multiple_choice", "true_false", "short_answer"]
+learning_styles = ["visual", "auditory", "reading", "kinesthetic"]
+
+[quality]
+min_quality_score = 0.7
+check_plagiarism = true
+check_readability = true
+check_accuracy = true
+readability_target = "grade8" # Target reading level
+
+[api]
+host = "0.0.0.0"
+port = 8000
+debug = false
+cors_origins = ["*"]
+rate_limit = 100     # Requests per minute
+
+[logging]
+level = "INFO"
+file = "logs/sentris_rag.log"
+max_size = 10485760           # 10MB
+backup_count = 5
+
+[cache]
+type = "redis"                         # or "memory"
+redis_url = "redis://localhost:6379/0"
+ttl = 3600                             # Cache TTL in seconds
+
+[security]
+token_expiry = 3600      # JWT token expiry in seconds
+min_password_length = 12
+require_2fa = false
