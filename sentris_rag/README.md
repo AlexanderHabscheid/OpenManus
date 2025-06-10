@@ -1,21 +1,20 @@
 # Sentris RAG
 
-A powerful educational RAG (Retrieval-Augmented Generation) system designed for integration with the Sentris platform. This package provides advanced document processing, knowledge management, and educational content generation capabilities.
+A focused RAG (Retrieval-Augmented Generation) system adapted from OpenManus, providing powerful document processing and web search capabilities.
 
 ## Features
 
 - **Advanced RAG System**
   - ChromaDB-based vector storage
   - Multi-format document processing (PDF, TXT, DOCX, HTML)
-  - Web search integration (Google, DuckDuckGo)
   - Token-based text chunking with overlap
+  - Efficient document retrieval
 
-- **Educational Features**
-  - Learning path generation
-  - Adaptive quiz system
-  - Content quality checking
-  - Progress tracking
-  - Multiple learning style support
+- **Web Search Integration**
+  - DuckDuckGo and Google support
+  - Automatic content extraction
+  - Result caching
+  - Search result processing into knowledge base
 
 - **LLM Integration**
   - DeepSeek API support (default)
@@ -31,7 +30,9 @@ pip install sentris_rag
 For development installation:
 
 ```bash
-git clone https://github.com/sentris/sentris_rag.git
+git clone https://github.com/AlexanderHabscheid/OpenManus.git
+cd OpenManus
+git checkout sentris_rag_component
 cd sentris_rag
 pip install -e ".[dev]"
 ```
@@ -57,13 +58,11 @@ rag = RagSystem("path/to/config.toml")
 # Process a document
 doc_id = await rag.process_document("path/to/document.pdf")
 
-# Generate educational materials
-materials = await rag.generate_materials(doc_id)
+# Search the knowledge base
+results = await rag.search("your query")
 
-# Access different components
-summary = materials["summary"]
-flashcards = materials["flashcards"]
-quiz = materials["quiz"]
+# Perform web search and add to knowledge base
+doc_ids = await rag.web_search_and_process("your query")
 ```
 
 ## Configuration
@@ -75,8 +74,6 @@ The system is highly configurable through a TOML configuration file. Key configu
 - `vector_store`: Vector database settings
 - `document_processor`: Document processing parameters
 - `web_search`: Web search configuration
-- `educational`: Educational feature settings
-- `quality`: Content quality parameters
 
 See `config.example.toml` for a complete configuration reference.
 

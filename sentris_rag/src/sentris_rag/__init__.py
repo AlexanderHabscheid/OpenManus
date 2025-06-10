@@ -1,10 +1,7 @@
 """
-Sentris RAG System - Educational content generation and management.
+Sentris RAG System - Document retrieval and web search capabilities.
 """
 
-from .educational.learning_path import LearningPathGenerator
-from .educational.quality import ContentQualityChecker
-from .educational.quiz import AdaptiveQuizGenerator
 from .llm.provider import LLMProvider, get_llm_provider
 from .rag.knowledge_base import KnowledgeBase
 from .rag.processor import DocumentProcessor
@@ -33,11 +30,6 @@ class RagSystem:
         self.knowledge_base = KnowledgeBase(self.config)
         self.processor = DocumentProcessor(self.config)
         self.web_search = WebSearch(self.config)
-
-        # Initialize educational components
-        self.learning_path = LearningPathGenerator(self)
-        self.quiz_generator = AdaptiveQuizGenerator(self)
-        self.quality_checker = ContentQualityChecker(self.config)
 
     def _load_config(self, config_path: str = None) -> dict:
         """Load configuration from file or use defaults."""
@@ -75,23 +67,6 @@ class RagSystem:
                 "default_engine": "duckduckgo",
                 "max_results": 10,
                 "cache_duration": 3600,
-            },
-            "educational": {
-                "default_difficulty_levels": [
-                    "beginner",
-                    "intermediate",
-                    "advanced",
-                    "expert",
-                ],
-                "quiz_types": ["multiple_choice", "true_false", "short_answer"],
-                "learning_styles": ["visual", "auditory", "reading", "kinesthetic"],
-            },
-            "quality": {
-                "min_quality_score": 0.7,
-                "check_plagiarism": True,
-                "check_readability": True,
-                "check_accuracy": True,
-                "readability_target": "grade8",
             },
         }
 
@@ -154,89 +129,36 @@ class RagSystem:
         """
         return await self.knowledge_base.search(query, filter_criteria, limit)
 
-    async def generate_materials(self, doc_id: str) -> dict:
+    async def web_search_and_process(self, query: str, max_results: int = 5) -> list:
         """
-        Generate educational materials from document.
+        Perform web search and process results into knowledge base.
 
         Args:
-            doc_id: Document ID in knowledge base
+            query: Search query
+            max_results: Maximum number of results to process
 
         Returns:
-            Generated materials
+            List of processed document IDs
         """
-        # Get document content
-        doc = await self.knowledge_base.get_document(doc_id)
-        if not doc:
-            raise ValueError(f"Document {doc_id} not found")
+        # Perform web search
+        search_results = await self.web_search.search(query, max_results)
 
-        # Generate materials
-        materials = {
-            "summary": await self._generate_summary(doc),
-            "flashcards": await self._generate_flashcards(doc),
-            "quiz": await self._generate_quiz(doc),
-        }
+        # Process and store results
+        doc_ids = []
+        for result in search_results:
+            chunks, metadata = await self.processor.process_text(
+                result["content"],
+                metadata={
+                    "source": result["url"],
+                    "title": result.get("title", ""),
+                    "snippet": result.get("snippet", ""),
+                    "search_query": query,
+                },
+            )
 
-        # Check quality
-        quality_report = await self.quality_checker.validate_content(
-            materials, "study_materials"
-        )
-        materials["quality_report"] = quality_report
+            # Add to knowledge base
+            result_ids = await self.knowledge_base.add_documents(chunks, metadata)
+            if result_ids:
+                doc_ids.extend(result_ids)
 
-        return materials
-
-    async def _generate_summary(self, doc: dict) -> str:
-        """Generate document summary using LLM."""
-        prompt = f"""
-        Generate a concise summary of the following text. Focus on key concepts and main ideas.
-
-        Text: {doc['text']}
-
-        Summary:
-        """
-
-        return await self.llm.generate(prompt=prompt, temperature=0.7, max_tokens=200)
-
-    async def _generate_flashcards(self, doc: dict) -> list:
-        """Generate flashcards from document using LLM."""
-        prompt = f"""
-        Create a set of flashcards from the following text. Each flashcard should have a front (question/term)
-        and back (answer/definition). Focus on key concepts and important facts.
-
-        Text: {doc['text']}
-
-        Format each flashcard as:
-        Front: <question/term>
-        Back: <answer/definition>
-
-        Flashcards:
-        """
-
-        response = await self.llm.generate(
-            prompt=prompt, temperature=0.7, max_tokens=500
-        )
-
-        # Parse response into flashcards
-        flashcards = []
-        current_card = {}
-
-        for line in response.split("\n"):
-            line = line.strip()
-            if line.startswith("Front:"):
-                if current_card:
-                    flashcards.append(current_card)
-                current_card = {"front": line[6:].strip()}
-            elif line.startswith("Back:"):
-                current_card["back"] = line[5:].strip()
-
-        if current_card:
-            flashcards.append(current_card)
-
-        return flashcards
-
-    async def _generate_quiz(self, doc: dict) -> dict:
-        """Generate quiz from document."""
-        return await self.quiz_generator.generate_adaptive_quiz(
-            topic=doc["metadata"].get("topic", "general"),
-            user_level=0.5,  # Default to intermediate
-            num_questions=5,
-        )
+        return doc_ids
