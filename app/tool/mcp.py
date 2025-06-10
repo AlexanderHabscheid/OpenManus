@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.types import TextContent
+from mcp.types import ListToolsResult, TextContent
 
 from app.logger import logger
 from app.tool.base import BaseTool, ToolResult
@@ -106,8 +106,8 @@ class MCPClients(ToolCollection):
         # Create proper tool objects for each server tool
         for tool in response.tools:
             original_name = tool.name
-            # Always prefix with server_id to ensure uniqueness
             tool_name = f"mcp_{server_id}_{original_name}"
+            tool_name = self._sanitize_tool_name(tool_name)
 
             server_tool = MCPClientTool(
                 name=tool_name,
@@ -124,6 +124,33 @@ class MCPClients(ToolCollection):
         logger.info(
             f"Connected to server {server_id} with tools: {[tool.name for tool in response.tools]}"
         )
+
+    def _sanitize_tool_name(self, name: str) -> str:
+        """Sanitize tool name to match MCPClientTool requirements."""
+        import re
+
+        # Replace invalid characters with underscores
+        sanitized = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
+
+        # Remove consecutive underscores
+        sanitized = re.sub(r"_+", "_", sanitized)
+
+        # Remove leading/trailing underscores
+        sanitized = sanitized.strip("_")
+
+        # Truncate to 64 characters if needed
+        if len(sanitized) > 64:
+            sanitized = sanitized[:64]
+
+        return sanitized
+
+    async def list_tools(self) -> ListToolsResult:
+        """List all available tools."""
+        tools_result = ListToolsResult(tools=[])
+        for session in self.sessions.values():
+            response = await session.list_tools()
+            tools_result.tools += response.tools
+        return tools_result
 
     async def disconnect(self, server_id: str = "") -> None:
         """Disconnect from a specific MCP server or all servers if no server_id provided."""
